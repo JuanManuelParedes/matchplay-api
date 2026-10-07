@@ -1,118 +1,106 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# MatchPlay Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend de MatchPlay construido con **NestJS + TypeScript**, siguiendo el
+patrón estándar de Nest: cada dominio es un **módulo** con su
+**controlador** (rutas HTTP) y su **servicio** (lógica de negocio),
+mapeado 1 a 1 contra `matchplay-api-unificada.yaml`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Los 43 endpoints del contrato están implementados** en 7 módulos y
+fueron probados contra un servidor real (no solo compilados).
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Cómo correrlo
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env
+npm run start:dev
 ```
 
-## Compile and run the project
+- API en `http://localhost:3000/api`
+- Documentación Swagger (generada desde los mismos decoradores del
+  código, no es el YAML estático) en `http://localhost:3000/api/docs`
 
-```bash
-# development
-$ npm run start
+## Estructura
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```
+src/
+  auth/        Tag "Auth" (5): registro, login, logout, recuperar/restablecer password.
+               Exporta UsersService (repositorio de usuarios en memoria)
+               y JwtStrategy/JwtAuthGuard, usados por el resto de módulos.
+  deportes/    Tag "Deportes" (1): catálogo fijo de deportes.
+  perfiles/    Tag "Perfiles" (4): feed de swipe, detalle, like, pass.
+               Al hacer like mutuo delega en MatchesService y crea el
+               chat correspondiente vía ChatsService.
+  matches/     Tag "Matches" (2): listar y deshacer matches.
+  eventos/     Tag "Eventos" (10): el módulo más grande. Ciclo de vida
+               completo borrador → publicado → cancelado, join/salir
+               por autoservicio, participantes.
+  chats/       Tag "Chats" (4): listar chats, historial de mensajes,
+               enviar mensaje (texto o propuesta_evento), responder una
+               propuesta ("Sí quiero" dispara EventosService.unirse()).
+  cuenta/      Tag "Cuenta" (17): todo bajo /me — perfil propio,
+               preferencias deportivas, horario disponible,
+               notificaciones, privacidad, bloqueados, idioma, tema.
+  common/      Filtro de excepciones (normaliza errores al schema
+               `Error`), decorador @CurrentUser(), interfaz JwtPayload.
 ```
 
-## Run tests
+Cada módulo sigue el mismo patrón:
+`*.module.ts` (ensambla todo) → `*.controller.ts` (rutas + validación de
+DTOs) → `*.service.ts` (reglas de negocio) → `entities/` (forma de los
+datos) → `dto/` (lo que puede llegar en el body/query, validado con
+`class-validator`).
 
-```bash
-# unit tests
-$ npm run test
+## Decisiones de diseño
 
-# e2e tests
-$ npm run test:e2e
+- **Persistencia**: por ahora cada servicio guarda sus datos en un
+  arreglo en memoria (se pierden al reiniciar el servidor). Es
+  intencional para esta etapa del proyecto: permite probar los 43
+  endpoints del contrato sin montar una base de datos todavía. El
+  siguiente paso natural es agregar Prisma o TypeORM con Postgres y
+  reemplazar únicamente los métodos de cada `*.service.ts` — los
+  controladores no cambiarían.
+- **Autenticación**: JWT sin estado (`@nestjs/jwt` + `passport-jwt`).
+  `POST /auth/logout` no invalida nada en el servidor porque no hay
+  sesión que borrar; el cliente simplemente descarta el token.
+- **Modelo de Eventos**: un evento se crea en `borrador` y
+  `POST /eventos/:id/publicar` lo pasa a `publicado`. La pantalla
+  "Crear evento" (botón único "Publicar evento") hace ambas llamadas en
+  la misma interacción del usuario, pero quedan como dos pasos de API
+  independientes para poder guardar un borrador sin publicarlo.
+- **Invitación por chat vs. autoservicio**: no existe un recurso
+  `/invitaciones`. Proponer un evento es un mensaje de chat
+  (`tipo: propuesta_evento`); aceptarlo llama internamente al mismo
+  `EventosService.unirse()` que usa el botón "Unirme" de la pantalla
+  Eventos. Ambos caminos terminan en el mismo punto de entrada al
+  dominio, y por eso respetan las mismas reglas (evento publicado,
+  cupo disponible).
+- **Chat automático al hacer match**: `PerfilesService.like()` llama a
+  `ChatsService.obtenerOCrearChat()` cuando el like es mutuo
+  (`Perfiles -> Chats -> Eventos`, una sola dirección, sin ciclos).
+  **Pendiente**: el chat automático al unirse *directamente* a un
+  partido personal desde la pantalla Eventos (sin haber chateado antes)
+  no está conectado, porque exigiría que `EventosModule` importara
+  `ChatsModule`, creando el ciclo `Eventos <-> Chats`. La forma correcta
+  de resolverlo es un `EventEmitterModule` de Nest (Eventos emite
+  `evento.participante_unido`, Chats escucha) en vez de un
+  `forwardRef()` circular; queda documentado en `chats.module.ts`.
+- **Estado "en línea" del chat**: el campo `enLinea` en la respuesta de
+  `GET /chats` siempre devuelve `false` por ahora — requiere trackear
+  sockets/heartbeats, fuera del alcance de este corte (ver TODO en
+  `chats.controller.ts`).
+- **Errores**: un filtro global (`HttpExceptionFilter`) convierte
+  cualquier excepción de Nest a la forma `{ "error": { "codigo",
+  "mensaje" } }` del schema `Error`, así todos los endpoints responden
+  errores con la misma forma sin repetir ese código en cada servicio.
 
-# test coverage
-$ npm run test:cov
-```
+## Siguiente paso natural
 
-## Deployment
+Con los 43 endpoints ya implementados y probados, lo que falta es
+infraestructura, no funcionalidad:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+1. Reemplazar los repositorios en memoria por Prisma/TypeORM + Postgres.
+2. Resolver el TODO del chat automático en eventos personales con
+   `EventEmitterModule`.
+3. Tests automatizados (unitarios por servicio, e2e por módulo) en vez
+   de las pruebas manuales con `curl` hechas durante el desarrollo.
