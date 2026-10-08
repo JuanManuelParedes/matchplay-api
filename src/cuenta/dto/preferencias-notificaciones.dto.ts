@@ -1,18 +1,18 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/mapped-types';
 import { IsBoolean } from 'class-validator';
 
 /**
  * Agrupado en 3 categorías en la UI (Actividad de partidos, Eventos,
- * General), aplanado aquí igual que en el schema del spec.
+ * General), aplanado aquí.
  */
 export class PreferenciasNotificacionesBaseDto {
-  @ApiProperty() @IsBoolean() nuevasSolicitudes: boolean;
-  @ApiProperty() @IsBoolean() mensajesNuevos: boolean;
-  @ApiProperty() @IsBoolean() recordatorioPartido: boolean;
-  @ApiProperty() @IsBoolean() nuevosEventosCerca: boolean;
-  @ApiProperty() @IsBoolean() cuposCasiLlenos: boolean;
-  @ApiProperty() @IsBoolean() cambiosEnEventos: boolean;
-  @ApiProperty() @IsBoolean() novedadesYPromociones: boolean;
+  @IsBoolean() nuevasSolicitudes: boolean;
+  @IsBoolean() mensajesNuevos: boolean;
+  @IsBoolean() recordatorioPartido: boolean;
+  @IsBoolean() nuevosEventosCerca: boolean;
+  @IsBoolean() cuposCasiLlenos: boolean;
+  @IsBoolean() cambiosEnEventos: boolean;
+  @IsBoolean() novedadesYPromociones: boolean;
 }
 
 /** PATCH: el usuario solo manda los toggles que cambió. */

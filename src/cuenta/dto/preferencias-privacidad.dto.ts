@@ -1,10 +1,10 @@
-import { ApiProperty, PartialType } from '@nestjs/swagger';
+import { PartialType } from '@nestjs/mapped-types';
 import { IsBoolean } from 'class-validator';
 
 export class PreferenciasPrivacidadBaseDto {
-  @ApiProperty() @IsBoolean() perfilVisibleEnBusqueda: boolean;
-  @ApiProperty() @IsBoolean() mostrarEdad: boolean;
-  @ApiProperty() @IsBoolean() mostrarUbicacionExacta: boolean;
+  @IsBoolean() perfilVisibleEnBusqueda: boolean;
+  @IsBoolean() mostrarEdad: boolean;
+  @IsBoolean() mostrarUbicacionExacta: boolean;
   // verificacionPerfil no se edita manualmente: la cambia un proceso de
   // verificación aparte, por eso no está en este DTO de entrada.
 }
