@@ -10,7 +10,6 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
@@ -23,22 +22,18 @@ import { ActualizarPrivacidadDto } from './dto/preferencias-privacidad.dto';
 import { ActualizarIdiomaDto, ActualizarTemaDto } from './dto/idioma-tema.dto';
 import { BloquearPerfilDto } from './dto/bloquear-perfil.dto';
 
-/** Tag "Cuenta" del spec: 17 operaciones, todas bajo /me. */
-@ApiTags('Cuenta')
-@ApiBearerAuth()
+/** 17 operaciones, todas bajo /me. */
 @UseGuards(JwtAuthGuard)
 @Controller('me')
 export class CuentaController {
   constructor(private readonly cuentaService: CuentaService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Obtener mi perfil' })
   perfilPropio(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.perfilPropio(usuario.sub);
   }
 
   @Patch()
-  @ApiOperation({ summary: 'Editar mi perfil' })
   actualizarPerfil(
     @Body() datos: ActualizarPerfilDto,
     @CurrentUser() usuario: JwtPayload,
@@ -48,25 +43,21 @@ export class CuentaController {
 
   @Delete()
   @HttpCode(204)
-  @ApiOperation({ summary: 'Eliminar mi cuenta (irreversible)' })
   eliminarCuenta(@CurrentUser() usuario: JwtPayload) {
     this.cuentaService.eliminarCuenta(usuario.sub);
   }
 
   @Get('datos')
-  @ApiOperation({ summary: 'Descargar mis datos' })
   descargarDatos(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.descargarDatos(usuario.sub);
   }
 
   @Get('preferencias-deportivas')
-  @ApiOperation({ summary: 'Ver mis preferencias deportivas' })
   obtenerPreferenciasDeportivas(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.obtenerPreferenciasDeportivas(usuario.sub);
   }
 
   @Put('preferencias-deportivas')
-  @ApiOperation({ summary: 'Actualizar mis preferencias deportivas' })
   actualizarPreferenciasDeportivas(
     @Body() datos: PreferenciasDeportivasDto,
     @CurrentUser() usuario: JwtPayload,
@@ -75,13 +66,11 @@ export class CuentaController {
   }
 
   @Get('horario-disponible')
-  @ApiOperation({ summary: 'Ver mi horario disponible' })
   obtenerHorario(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.obtenerHorario(usuario.sub);
   }
 
   @Put('horario-disponible')
-  @ApiOperation({ summary: 'Actualizar mi horario disponible' })
   actualizarHorario(
     @Body() datos: HorarioDisponibleDto,
     @CurrentUser() usuario: JwtPayload,
@@ -90,13 +79,11 @@ export class CuentaController {
   }
 
   @Get('notificaciones')
-  @ApiOperation({ summary: 'Ver mis preferencias de notificaciones' })
   obtenerNotificaciones(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.obtenerNotificaciones(usuario.sub);
   }
 
   @Patch('notificaciones')
-  @ApiOperation({ summary: 'Actualizar mis preferencias de notificaciones' })
   actualizarNotificaciones(
     @Body() datos: ActualizarNotificacionesDto,
     @CurrentUser() usuario: JwtPayload,
@@ -105,13 +92,11 @@ export class CuentaController {
   }
 
   @Get('privacidad')
-  @ApiOperation({ summary: 'Ver mis preferencias de privacidad' })
   obtenerPrivacidad(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.obtenerPrivacidad(usuario.sub);
   }
 
   @Patch('privacidad')
-  @ApiOperation({ summary: 'Actualizar mis preferencias de privacidad' })
   actualizarPrivacidad(
     @Body() datos: ActualizarPrivacidadDto,
     @CurrentUser() usuario: JwtPayload,
@@ -120,13 +105,11 @@ export class CuentaController {
   }
 
   @Get('bloqueados')
-  @ApiOperation({ summary: 'Listar perfiles bloqueados' })
   listarBloqueados(@CurrentUser() usuario: JwtPayload) {
     return this.cuentaService.listarBloqueados(usuario.sub);
   }
 
   @Post('bloqueados')
-  @ApiOperation({ summary: 'Bloquear un perfil' })
   bloquear(
     @Body() datos: BloquearPerfilDto,
     @CurrentUser() usuario: JwtPayload,
@@ -136,7 +119,6 @@ export class CuentaController {
 
   @Delete('bloqueados/:perfilId')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Desbloquear un perfil' })
   desbloquear(
     @Param('perfilId') perfilId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -145,7 +127,6 @@ export class CuentaController {
   }
 
   @Put('idioma')
-  @ApiOperation({ summary: 'Cambiar el idioma de la aplicación' })
   actualizarIdioma(
     @Body() datos: ActualizarIdiomaDto,
     @CurrentUser() usuario: JwtPayload,
@@ -154,7 +135,6 @@ export class CuentaController {
   }
 
   @Put('tema')
-  @ApiOperation({ summary: 'Cambiar el tema visual de la aplicación' })
   actualizarTema(
     @Body() datos: ActualizarTemaDto,
     @CurrentUser() usuario: JwtPayload,

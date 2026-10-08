@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
@@ -9,9 +8,7 @@ import { ResponderPropuestaDto } from './dto/responder-propuesta.dto';
 import { UsersService } from '../auth/users.service';
 import { Chat } from './entities/chat.entity';
 
-/** Tag "Chats" del spec. */
-@ApiTags('Chats')
-@ApiBearerAuth()
+/** Todas las rutas requieren sesión. */
 @UseGuards(JwtAuthGuard)
 @Controller('chats')
 export class ChatsController {
@@ -21,7 +18,6 @@ export class ChatsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar mis chats' })
   listar(
     @CurrentUser() usuario: JwtPayload,
     @Query('deporte') deporte?: string,
@@ -33,7 +29,6 @@ export class ChatsController {
   }
 
   @Get(':chatId/mensajes')
-  @ApiOperation({ summary: 'Obtener el historial de mensajes de un chat' })
   listarMensajes(
     @Param('chatId') chatId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -42,7 +37,6 @@ export class ChatsController {
   }
 
   @Post(':chatId/mensajes')
-  @ApiOperation({ summary: 'Enviar un mensaje (texto o propuesta de evento)' })
   enviarMensaje(
     @Param('chatId') chatId: string,
     @Body() datos: EnviarMensajeDto,
@@ -52,7 +46,6 @@ export class ChatsController {
   }
 
   @Post(':chatId/mensajes/:mensajeId/responder')
-  @ApiOperation({ summary: 'Responder "Sí quiero" / "No, gracias" a una propuesta' })
   responder(
     @Param('chatId') chatId: string,
     @Param('mensajeId') mensajeId: string,
@@ -67,7 +60,7 @@ export class ChatsController {
     );
   }
 
-  /** Mapea la entidad interna a la forma del schema `Chat` del spec. */
+  /** Convierte el chat interno en el resumen que se devuelve al cliente. */
   private aResumen(chat: Chat, usuarioActualId: string) {
     const otroId =
       chat.usuarioIdA === usuarioActualId ? chat.usuarioIdB : chat.usuarioIdA;

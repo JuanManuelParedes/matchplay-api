@@ -1,14 +1,11 @@
 import { Controller, Delete, Get, HttpCode, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
 import { MatchesService } from './matches.service';
 import { UsersService } from '../auth/users.service';
 
-/** Tag "Matches" del spec: GET /matches, DELETE /matches/{matchId}. */
-@ApiTags('Matches')
-@ApiBearerAuth()
+/** GET /matches, DELETE /matches/{matchId}. */
 @UseGuards(JwtAuthGuard)
 @Controller('matches')
 export class MatchesController {
@@ -18,7 +15,6 @@ export class MatchesController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar mis matches' })
   listar(@CurrentUser() usuario: JwtPayload) {
     return this.matchesService.listarDeUsuario(usuario.sub).map((match) => {
       const otroId = this.matchesService.otroParticipante(match, usuario.sub);
@@ -41,7 +37,6 @@ export class MatchesController {
 
   @Delete(':matchId')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Deshacer un match' })
   eliminar(
     @Param('matchId') matchId: string,
     @CurrentUser() usuario: JwtPayload,

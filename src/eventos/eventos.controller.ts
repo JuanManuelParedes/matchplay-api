@@ -10,7 +10,6 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
@@ -20,9 +19,7 @@ import { ActualizarEventoDto } from './dto/actualizar-evento.dto';
 import { UsersService } from '../auth/users.service';
 import { Evento } from './entities/evento.entity';
 
-/** Tag "Eventos" del spec: 9 operaciones sobre /eventos. */
-@ApiTags('Eventos')
-@ApiBearerAuth()
+/** 9 operaciones sobre /eventos. */
 @UseGuards(JwtAuthGuard)
 @Controller('eventos')
 export class EventosController {
@@ -32,7 +29,6 @@ export class EventosController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar eventos publicados (Solicitudes / Eventos)' })
   listar(
     @Query('tipo') tipo?: 'personal' | 'comunidad',
     @Query('deporte') deporte?: string,
@@ -43,7 +39,6 @@ export class EventosController {
   }
 
   @Get('mios')
-  @ApiOperation({ summary: 'Listar los eventos que yo organicé' })
   listarMios(@CurrentUser() usuario: JwtPayload) {
     return this.eventosService
       .listarMios(usuario.sub)
@@ -51,19 +46,16 @@ export class EventosController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crear evento (queda en borrador)' })
   crear(@Body() datos: CrearEventoDto, @CurrentUser() usuario: JwtPayload) {
     return this.aRespuesta(this.eventosService.crear(usuario.sub, datos));
   }
 
   @Get(':eventoId')
-  @ApiOperation({ summary: 'Ver el detalle de un evento' })
   obtenerUno(@Param('eventoId') eventoId: string) {
     return this.aRespuesta(this.eventosService.obtenerUno(eventoId));
   }
 
   @Patch(':eventoId')
-  @ApiOperation({ summary: 'Editar un evento propio' })
   actualizar(
     @Param('eventoId') eventoId: string,
     @Body() cambios: ActualizarEventoDto,
@@ -75,7 +67,6 @@ export class EventosController {
   }
 
   @Post(':eventoId/publicar')
-  @ApiOperation({ summary: 'Publicar un evento en borrador' })
   publicar(
     @Param('eventoId') eventoId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -86,7 +77,6 @@ export class EventosController {
   }
 
   @Post(':eventoId/cancelar')
-  @ApiOperation({ summary: 'Cancelar un evento propio' })
   cancelar(
     @Param('eventoId') eventoId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -97,7 +87,6 @@ export class EventosController {
   }
 
   @Post(':eventoId/join')
-  @ApiOperation({ summary: 'Unirme a un evento (autoservicio, sin invitación)' })
   unirse(
     @Param('eventoId') eventoId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -107,7 +96,6 @@ export class EventosController {
 
   @Delete(':eventoId/join')
   @HttpCode(204)
-  @ApiOperation({ summary: 'Salir de un evento al que me uní' })
   salir(
     @Param('eventoId') eventoId: string,
     @CurrentUser() usuario: JwtPayload,
@@ -116,7 +104,6 @@ export class EventosController {
   }
 
   @Get(':eventoId/participantes')
-  @ApiOperation({ summary: 'Listar los participantes confirmados' })
   participantes(@Param('eventoId') eventoId: string) {
     return this.eventosService
       .participantesIds(eventoId)
@@ -131,7 +118,7 @@ export class EventosController {
       }));
   }
 
-  /** Mapea la entidad interna a la forma del schema `Evento` del spec. */
+  /** Convierte el evento interno en la respuesta que se devuelve al cliente */
   private aRespuesta(evento: Evento) {
     return {
       id: evento.id,
