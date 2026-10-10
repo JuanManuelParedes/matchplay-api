@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../common/interfaces/jwt-payload.interface';
@@ -11,8 +11,12 @@ export class PerfilesController {
   constructor(private readonly perfilesService: PerfilesService) {}
 
   @Get('feed')
-  feed(@CurrentUser() usuario: JwtPayload) {
-    return this.perfilesService.feed(usuario.sub);
+  feed(
+    @CurrentUser() usuario: JwtPayload,
+    @Query('deporte') deporte?: string,
+    @Query('limite') limite?: string,
+  ) {
+    return this.perfilesService.feed(usuario.sub, deporte, limite);
   }
 
   @Get(':perfilId')

@@ -32,14 +32,14 @@ export class AuthController {
 
   @Post('recuperar-password')
   recuperarPassword(@Body() datos: RecuperarPasswordDto) {
-    return this.authService.recuperarPassword(datos.correo);
+    return this.authService.recuperarPassword(datos.correo, datos.nombreUsuario);
   }
 
   @Post('restablecer-password')
   restablecerPassword(@Body() datos: RestablecerPasswordDto) {
     return this.authService.restablecerPassword(
       datos.token,
-      datos.passwordNueva,
+      datos.nuevaPassword,
     );
   }
 }

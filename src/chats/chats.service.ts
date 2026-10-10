@@ -124,6 +124,11 @@ export class ChatsService {
     if (!mensaje || mensaje.tipo !== 'propuesta_evento') {
       throw new NotFoundException('Propuesta de evento no encontrada');
     }
+    if (mensaje.autorId === usuarioId) {
+      throw new ForbiddenException(
+        'Solo el destinatario de la propuesta puede responderla',
+      );
+    }
     if (mensaje.estadoPropuesta !== 'pendiente') {
       throw new ConflictException('Esta propuesta ya fue respondida');
     }

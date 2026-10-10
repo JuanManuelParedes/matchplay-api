@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -17,7 +18,10 @@ import { EventosService } from './eventos.service';
 import { CrearEventoDto } from './dto/crear-evento.dto';
 import { ActualizarEventoDto } from './dto/actualizar-evento.dto';
 import { UsersService } from '../auth/users.service';
-import { Evento } from './entities/evento.entity';
+import { EstadoEvento, Evento } from './entities/evento.entity';
+
+const ROLES_MIOS = ['creador', 'participante'];
+const ESTADOS = ['borrador', 'publicado', 'cancelado', 'finalizado'];
 
 /** 9 operaciones sobre /eventos. */
 @UseGuards(JwtAuthGuard)
@@ -39,9 +43,23 @@ export class EventosController {
   }
 
   @Get('mios')
-  listarMios(@CurrentUser() usuario: JwtPayload) {
+  listarMios(
+    @CurrentUser() usuario: JwtPayload,
+    @Query('rol') rol?: string,
+    @Query('estado') estado?: string,
+  ) {
+    if (rol !== undefined && !ROLES_MIOS.includes(rol)) {
+      throw new BadRequestException('rol debe ser creador o participante');
+    }
+    if (estado !== undefined && !ESTADOS.includes(estado)) {
+      throw new BadRequestException(`estado debe ser uno de: ${ESTADOS.join(', ')}`);
+    }
     return this.eventosService
-      .listarMios(usuario.sub)
+      .listarMios(
+        usuario.sub,
+        rol as 'creador' | 'participante' | undefined,
+        estado as EstadoEvento | undefined,
+      )
       .map((e) => this.aRespuesta(e));
   }
 
@@ -51,8 +69,13 @@ export class EventosController {
   }
 
   @Get(':eventoId')
-  obtenerUno(@Param('eventoId') eventoId: string) {
-    return this.aRespuesta(this.eventosService.obtenerUno(eventoId));
+  obtenerUno(
+    @Param('eventoId') eventoId: string,
+    @CurrentUser() usuario: JwtPayload,
+  ) {
+    return this.aRespuesta(
+      this.eventosService.obtenerVisible(eventoId, usuario.sub),
+    );
   }
 
   @Patch(':eventoId')
@@ -104,9 +127,12 @@ export class EventosController {
   }
 
   @Get(':eventoId/participantes')
-  participantes(@Param('eventoId') eventoId: string) {
+  participantes(
+    @Param('eventoId') eventoId: string,
+    @CurrentUser() usuario: JwtPayload,
+  ) {
     return this.eventosService
-      .participantesIds(eventoId)
+      .participantesIds(eventoId, usuario.sub)
       .map((id) => this.usersService.buscarPorId(id))
       .filter((u): u is NonNullable<typeof u> => Boolean(u))
       .map((u) => ({

@@ -68,26 +68,33 @@ export interface Usuario {
   creadoEn: Date;
 }
 
-/** Valores por defecto al registrar un usuario nuevo. */
-export const PREFERENCIAS_POR_DEFECTO = {
-  radioBusquedaKm: 10,
-  horarioDisponible: { dias: [] as DiaSemana[] },
-  notificaciones: {
-    nuevasSolicitudes: true,
-    mensajesNuevos: true,
-    recordatorioPartido: true,
-    nuevosEventosCerca: true,
-    cuposCasiLlenos: false,
-    cambiosEnEventos: true,
-    novedadesYPromociones: false,
-  } satisfies PreferenciasNotificaciones,
-  privacidad: {
-    perfilVisibleEnBusqueda: true,
-    mostrarEdad: true,
-    mostrarUbicacionExacta: false,
-    verificacionPerfil: 'pendiente',
-  } satisfies PreferenciasPrivacidad,
-  bloqueadosIds: [] as string[],
-  idioma: 'es' as Idioma,
-  tema: 'automatico' as Tema,
-};
+/**
+ * Valores por defecto al registrar un usuario nuevo.
+ * Es una función (no un objeto constante) para que cada usuario reciba
+ * sus propios objetos y arreglos; si se compartiera una única instancia,
+ * un cambio de un usuario (p. ej. bloquear a alguien) afectaría a todos.
+ */
+export function crearPreferenciasPorDefecto() {
+  return {
+    radioBusquedaKm: 10,
+    horarioDisponible: { dias: [] as DiaSemana[] },
+    notificaciones: {
+      nuevasSolicitudes: true,
+      mensajesNuevos: true,
+      recordatorioPartido: true,
+      nuevosEventosCerca: true,
+      cuposCasiLlenos: false,
+      cambiosEnEventos: true,
+      novedadesYPromociones: false,
+    } satisfies PreferenciasNotificaciones,
+    privacidad: {
+      perfilVisibleEnBusqueda: true,
+      mostrarEdad: true,
+      mostrarUbicacionExacta: false,
+      verificacionPerfil: 'pendiente',
+    } satisfies PreferenciasPrivacidad,
+    bloqueadosIds: [] as string[],
+    idioma: 'es' as Idioma,
+    tema: 'automatico' as Tema,
+  };
+}

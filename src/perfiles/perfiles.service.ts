@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { UsersService } from '../auth/users.service';
 import { MatchesService } from '../matches/matches.service';
 import { ChatsService } from '../chats/chats.service';
@@ -25,10 +29,23 @@ export class PerfilesService {
   ) {}
 
   /** Corresponde a GET /perfiles/feed (pantalla HOME de swipe). */
-  feed(usuarioActualId: string) {
-    return this.usersService
+  feed(usuarioActualId: string, deporte?: string, limite?: string) {
+    let maximo: number | undefined;
+    if (limite !== undefined) {
+      maximo = Number(limite);
+      if (!Number.isInteger(maximo) || maximo < 1) {
+        throw new BadRequestException('limite debe ser un entero mayor o igual a 1');
+      }
+    }
+
+    const perfiles = this.usersService
       .listar(usuarioActualId)
+      // Los perfiles que el usuario ya descartó no vuelven a aparecer.
+      .filter((u) => !this.matchesService.fueDescartado(usuarioActualId, u.id))
+      .filter((u) => !deporte || u.deportesFavoritos.includes(deporte))
       .map((usuario) => aPerfilPublico(usuario));
+
+    return maximo === undefined ? perfiles : perfiles.slice(0, maximo);
   }
 
   obtenerUno(perfilId: string) {
@@ -47,6 +64,9 @@ export class PerfilesService {
    */
   like(usuarioActualId: string, perfilId: string) {
     this.asegurarQueExiste(perfilId);
+    if (perfilId === usuarioActualId) {
+      throw new BadRequestException('No puedes dar like a tu propio perfil');
+    }
     const match = this.matchesService.registrarLike(usuarioActualId, perfilId);
     if (match) {
       this.chatsService.obtenerOCrearChat(usuarioActualId, perfilId);
@@ -56,9 +76,11 @@ export class PerfilesService {
 
   pass(usuarioActualId: string, perfilId: string) {
     this.asegurarQueExiste(perfilId);
-    // No hay estado que guardar más allá de quitarlo del feed del
-    // cliente; se deja el método explícito porque el spec lo define
-    // como su propio endpoint (POST /perfiles/{perfilId}/pass).
+    if (perfilId === usuarioActualId) {
+      throw new BadRequestException('No puedes descartar tu propio perfil');
+    }
+    // Se guarda el descarte para que el perfil no vuelva a salir en el feed.
+    this.matchesService.registrarPass(usuarioActualId, perfilId);
     return { mensaje: 'Perfil descartado' };
   }
 

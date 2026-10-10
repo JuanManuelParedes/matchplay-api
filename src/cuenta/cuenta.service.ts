@@ -95,7 +95,9 @@ export class CuentaService {
 
   actualizarPrivacidad(usuarioId: string, cambios: ActualizarPrivacidadDto) {
     const u = this.obtener(usuarioId);
-    u.privacidad = { ...u.privacidad, ...cambios };
+    // verificacionPerfil se acepta en el body pero se ignora (no editable por el usuario).
+    const { verificacionPerfil: _ignorado, ...editables } = cambios;
+    u.privacidad = { ...u.privacidad, ...editables };
     return u.privacidad;
   }
 
