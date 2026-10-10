@@ -1,19 +1,31 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { v4 as uuid } from 'uuid';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from './users.service';
 import { RegistroDto } from './dto/registro.dto';
 import { LoginDto } from './dto/login.dto';
-import { PREFERENCIAS_POR_DEFECTO, Usuario } from './entities/usuario.entity';
+import { crearPreferenciasPorDefecto, Usuario } from './entities/usuario.entity';
 
 const SALT_ROUNDS = 10;
+/** Vigencia del token de recuperación: 1 hora. */
+const TOKEN_RECUPERACION_MS = 60 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  /** Tokens de un solo uso: token -> usuario y fecha de expiración (en memoria). */
+  private readonly tokensRecuperacion = new Map<
+    string,
+    { usuarioId: string; expira: number }
+  >();
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -39,7 +51,7 @@ export class AuthService {
         calificacion: 0,
         eventosOrganizados: 0,
       },
-      ...PREFERENCIAS_POR_DEFECTO,
+      ...crearPreferenciasPorDefecto(),
     });
 
     return this.firmarToken(usuario);
@@ -73,21 +85,54 @@ export class AuthService {
     return { mensaje: 'Sesión cerrada' };
   }
 
-  recuperarPassword(correo: string) {
+  /**
+   * POST /auth/recuperar-password. Solo genera token si el correo Y el
+   * nombre de usuario corresponden a la misma cuenta. La respuesta es
+   * siempre la misma para no revelar qué cuentas existen.
+   *
+   * Aún no hay proveedor de correo: en desarrollo (NODE_ENV distinto de
+   * "production") el token se devuelve en la respuesta y se imprime en
+   * consola para poder probar el flujo completo.
+   */
+  recuperarPassword(correo: string, nombreUsuario: string) {
+    const respuesta: { mensaje: string; token?: string } = {
+      mensaje: 'Si los datos coinciden, se envió un enlace de recuperación',
+    };
+
     const usuario = this.usersService.buscarPorCorreo(correo);
-    // Siempre respondemos igual exista o no el correo, para no filtrar
-    // qué correos están registrados.
-    if (usuario) {
-      // TODO: generar token de un solo uso y enviarlo por correo (p.ej. con un
-      // proveedor como SendGrid/SES). Por ahora solo se documenta el contrato.
+    if (usuario && usuario.nombreUsuario === nombreUsuario) {
+      const token = uuid();
+      this.tokensRecuperacion.set(token, {
+        usuarioId: usuario.id,
+        expira: Date.now() + TOKEN_RECUPERACION_MS,
+      });
+      // TODO: enviar el token por correo (SendGrid/SES) en vez de devolverlo.
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(`Token de recuperación para ${correo}: ${token}`);
+        respuesta.token = token;
+      }
     }
-    return { mensaje: 'Si el correo existe, se envió un enlace de recuperación' };
+    return respuesta;
   }
 
-  async restablecerPassword(_token: string, passwordNueva: string) {
-    // TODO: validar el token de un solo uso emitido en recuperarPassword().
-    const passwordHash = await bcrypt.hash(passwordNueva, SALT_ROUNDS);
-    return { passwordHash, mensaje: 'Contraseña actualizada' };
+  /** POST /auth/restablecer-password. El token es de un solo uso. */
+  async restablecerPassword(token: string, nuevaPassword: string) {
+    const registro = this.tokensRecuperacion.get(token);
+    if (!registro || registro.expira < Date.now()) {
+      this.tokensRecuperacion.delete(token);
+      throw new BadRequestException('Token inválido o expirado');
+    }
+
+    const passwordHash = await bcrypt.hash(nuevaPassword, SALT_ROUNDS);
+    const actualizado = this.usersService.actualizar(registro.usuarioId, {
+      passwordHash,
+    });
+    this.tokensRecuperacion.delete(token);
+    if (!actualizado) {
+      throw new BadRequestException('Token inválido o expirado');
+    }
+    // Nunca se devuelve passwordHash.
+    return { mensaje: 'Contraseña actualizada' };
   }
 
   private firmarToken(usuario: Usuario) {

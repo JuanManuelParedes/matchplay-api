@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { v4 as uuid } from 'uuid';
-import { Evento } from './entities/evento.entity';
+import { EstadoEvento, Evento } from './entities/evento.entity';
 import { CrearEventoDto } from './dto/crear-evento.dto';
 import { ActualizarEventoDto } from './dto/actualizar-evento.dto';
 
@@ -62,14 +62,40 @@ export class EventosService {
     );
   }
 
-  /** GET /eventos/mios: todo lo que el usuario creó, en cualquier estado. */
-  listarMios(usuarioId: string): Evento[] {
-    return this.eventos.filter((e) => e.creadorId === usuarioId);
+  /**
+   * GET /eventos/mios. `rol=creador` (por defecto): eventos que el usuario
+   * creó. `rol=participante`: eventos de otros en los que está inscrito.
+   * `estado` filtra opcionalmente por estado del evento.
+   */
+  listarMios(
+    usuarioId: string,
+    rol: 'creador' | 'participante' = 'creador',
+    estado?: EstadoEvento,
+  ): Evento[] {
+    return this.eventos.filter((e) => {
+      const coincideRol =
+        rol === 'creador'
+          ? e.creadorId === usuarioId
+          : e.creadorId !== usuarioId && e.participantesIds.includes(usuarioId);
+      return coincideRol && (!estado || e.estado === estado);
+    });
   }
 
   obtenerUno(eventoId: string): Evento {
     const evento = this.eventos.find((e) => e.id === eventoId);
     if (!evento) {
+      throw new NotFoundException('Evento no encontrado');
+    }
+    return evento;
+  }
+
+  /**
+   * Como obtenerUno, pero respetando la visibilidad: un borrador solo lo
+   * ve su creador. Para los demás se responde 404 (no se revela que existe).
+   */
+  obtenerVisible(eventoId: string, usuarioId: string): Evento {
+    const evento = this.obtenerUno(eventoId);
+    if (evento.estado === 'borrador' && evento.creadorId !== usuarioId) {
       throw new NotFoundException('Evento no encontrado');
     }
     return evento;
@@ -82,6 +108,18 @@ export class EventosService {
   ): Evento {
     const evento = this.obtenerUno(eventoId);
     this.asegurarQueEsCreador(evento, usuarioId);
+
+    if (evento.estado === 'cancelado') {
+      throw new ConflictException('No se puede editar un evento cancelado');
+    }
+    if (
+      cambios.cupoMaximo !== undefined &&
+      cambios.cupoMaximo < evento.participantesIds.length
+    ) {
+      throw new BadRequestException(
+        'El cupo máximo no puede ser menor al número de inscritos actuales',
+      );
+    }
 
     Object.assign(evento, {
       ...cambios,
@@ -147,8 +185,8 @@ export class EventosService {
     return evento;
   }
 
-  participantesIds(eventoId: string): string[] {
-    return this.obtenerUno(eventoId).participantesIds;
+  participantesIds(eventoId: string, usuarioId: string): string[] {
+    return this.obtenerVisible(eventoId, usuarioId).participantesIds;
   }
 
   cuposOcupados(evento: Evento): number {

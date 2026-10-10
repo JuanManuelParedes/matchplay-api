@@ -3,6 +3,9 @@ import { IsEmail, IsString, MinLength } from 'class-validator';
 export class RecuperarPasswordDto {
   @IsEmail()
   correo: string;
+
+  @IsString()
+  nombreUsuario: string;
 }
 
 export class RestablecerPasswordDto {
@@ -11,5 +14,5 @@ export class RestablecerPasswordDto {
 
   @IsString()
   @MinLength(8)
-  passwordNueva: string;
+  nuevaPassword: string;
 }

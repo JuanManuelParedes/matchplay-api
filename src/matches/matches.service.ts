@@ -12,6 +12,8 @@ export class MatchesService {
   private readonly matches: Match[] = [];
   /** Clave: `${deQuien}->${aQuien}` */
   private readonly likesDados = new Set<string>();
+  /** Perfiles descartados con "pass". Misma clave: `${deQuien}->${aQuien}` */
+  private readonly descartados = new Set<string>();
 
   /**
    * Registra que `deUsuarioId` dio like a `aUsuarioId`.
@@ -20,6 +22,16 @@ export class MatchesService {
    */
   registrarLike(deUsuarioId: string, aUsuarioId: string): Match | undefined {
     this.likesDados.add(`${deUsuarioId}->${aUsuarioId}`);
+    // Si antes lo había descartado, el like posterior anula el descarte.
+    this.descartados.delete(`${deUsuarioId}->${aUsuarioId}`);
+
+    // Si ya existe un match entre ambos, se devuelve ese mismo (sin duplicar).
+    const existente = this.matches.find(
+      (m) =>
+        (m.usuarioIdA === deUsuarioId && m.usuarioIdB === aUsuarioId) ||
+        (m.usuarioIdA === aUsuarioId && m.usuarioIdB === deUsuarioId),
+    );
+    if (existente) return existente;
 
     const huboLikeReciproco = this.likesDados.has(
       `${aUsuarioId}->${deUsuarioId}`,
@@ -34,6 +46,16 @@ export class MatchesService {
     };
     this.matches.push(match);
     return match;
+  }
+
+  /** Guarda que `deUsuarioId` descartó a `aUsuarioId` (para sacarlo del feed). */
+  registrarPass(deUsuarioId: string, aUsuarioId: string): void {
+    this.descartados.add(`${deUsuarioId}->${aUsuarioId}`);
+  }
+
+  /** ¿`deUsuarioId` ya descartó a `aUsuarioId`? */
+  fueDescartado(deUsuarioId: string, aUsuarioId: string): boolean {
+    return this.descartados.has(`${deUsuarioId}->${aUsuarioId}`);
   }
 
   listarDeUsuario(usuarioId: string): Match[] {
@@ -57,5 +79,9 @@ export class MatchesService {
     }
     const index = this.matches.indexOf(match);
     this.matches.splice(index, 1);
+    // Se borran también los likes de ambos lados; si no, el siguiente like
+    // de cualquiera de los dos recrearía el match al instante.
+    this.likesDados.delete(`${match.usuarioIdA}->${match.usuarioIdB}`);
+    this.likesDados.delete(`${match.usuarioIdB}->${match.usuarioIdA}`);
   }
 }
